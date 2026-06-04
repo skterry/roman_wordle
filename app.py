@@ -40,9 +40,14 @@ for _k, _v in {"game_active": False, "secret_word": None}.items():
 
 
 def get_daily_word() -> str:
+    _overrides = {
+        "2026-06-04": "BULGE",
+    }
+    today = datetime.date.today().isoformat()   # e.g. "2026-06-04"
+    if today in _overrides:
+        return _overrides[today]
     # Sort first so the list order is stable regardless of set iteration order.
     words = sorted(w.upper() for w in KEYS if isinstance(w, str) and w.isalpha())
-    today = datetime.date.today().isoformat()   # e.g. "2026-06-04"
     return random.Random(today).choice(words)
 
 
