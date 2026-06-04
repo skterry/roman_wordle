@@ -5,7 +5,7 @@ import random
 import streamlit as st
 from PIL import Image
 
-from secret_words import CLUES
+from secret_words import KEYS
 
 _icon_path = os.path.join(os.path.dirname(__file__), "icon", "RST_icon.png")
 st.set_page_config(
@@ -41,7 +41,7 @@ for _k, _v in {"game_active": False, "secret_word": None}.items():
 
 def get_daily_word() -> str:
     # Sort first so the list order is stable regardless of set iteration order.
-    words = sorted(w.upper() for w in CLUES if isinstance(w, str) and w.isalpha())
+    words = sorted(w.upper() for w in KEYS if isinstance(w, str) and w.isalpha())
     today = datetime.date.today().isoformat()   # e.g. "2026-06-04"
     return random.Random(today).choice(words)
 
