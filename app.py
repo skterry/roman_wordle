@@ -180,7 +180,7 @@ body {{
 <body>
 
 <div class="wl-title">ROMAN WORDLE</div>
-<div class="wl-sub">Guess words related to the Roman mission and the universe!</div>
+<div class="wl-sub">One Roman Space Telescope-themed word per day!</div>
 <div id="message"></div>
 <div id="board"></div>
 <div id="keyboard"></div>
