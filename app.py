@@ -5,7 +5,7 @@ import random
 import streamlit as st
 from PIL import Image
 
-from secret_words import KEYS
+KEYS = set(st.secrets["game"]["words"])
 
 _icon_path = os.path.join(os.path.dirname(__file__), "icon", "RST_icon.png")
 st.set_page_config(
