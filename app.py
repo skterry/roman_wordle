@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 import random
 
@@ -59,6 +60,12 @@ def start_game() -> None:
 def build_game_html(secret_word: str) -> tuple[str, int, int]:
     word_len = len(secret_word)
     max_guesses = 6
+
+    # Curated allow-list: our themed words (GAIA, NASA, WEBB, …) are proper nouns
+    # and acronyms the public dictionary API doesn't know, so accept them directly.
+    allowed_words = json.dumps(
+        sorted(w.upper() for w in KEYS if isinstance(w, str) and w.isalpha())
+    )
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -191,10 +198,28 @@ body {{
 const SECRET      = '{secret_word}';
 const WORD_LEN    = {word_len};
 const MAX_GUESSES = {max_guesses};
+const ALLOWED     = new Set({allowed_words});   // our themed words, always valid
 
 let guesses  = [];
 let current  = '';
 let gameOver = false;
+let checking = false;   // true while a guess is being validated against the dictionary
+
+// Returns true if `word` is a real English word (per the free Dictionary API).
+// Fails open: if the API is unreachable, we allow the guess rather than block play.
+async function isRealWord(word) {{
+  if (ALLOWED.has(word.toUpperCase())) return true;   // curated themed words
+  try {{
+    const resp = await fetch(
+      'https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(word.toLowerCase())
+    );
+    if (resp.ok)            return true;   // 200 → word exists
+    if (resp.status === 404) return false; // 404 → not a word
+    return true;                           // other errors → don't penalize the player
+  }} catch (e) {{
+    return true;                           // network failure → fail open
+  }}
+}}
 
 // ── DOM construction ──
 function buildBoard() {{
@@ -296,14 +321,29 @@ function evaluate(guess) {{
 }}
 
 // ── submission ──
-function submitGuess() {{
+async function submitGuess() {{
+  if (checking) return;   // ignore re-entry while a dictionary check is in flight
   if (current.length < WORD_LEN) {{
     shakeRow(guesses.length);
     showMsg('Not enough letters', 'info');
     return;
   }}
 
-  const guess  = current;
+  const guess = current;
+
+  // Reject guesses that aren't real English words (does not consume a turn).
+  checking = true;
+  showMsg('Checking…', 'info');
+  const valid = await isRealWord(guess);
+  checking = false;
+  if (gameOver) return;   // game may have ended while we were waiting
+  if (!valid) {{
+    shakeRow(guesses.length);
+    showMsg('Not in word list', 'info');
+    return;
+  }}
+
+  showMsg('', '');   // clear the "Checking…" notice
   const result = evaluate(guess);
   const rowIdx = guesses.length;
 
