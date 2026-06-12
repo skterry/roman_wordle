@@ -1,10 +1,17 @@
 # Roman Wordle
 
+<p>
+  Hosted on Streamlit
+  <a href="https://streamlit.io/" target="_blank">
+    <img src="icon/streamlit_icon.png" alt="Streamlit" height="22" align="top"/>
+  </a>
+</p>
+
 <a href="https://romanwordle.streamlit.app/" target="_blank">
   <img src="https://img.shields.io/badge/Play%20Now-brightgreen?style=for-the-badge" alt="Play Now!"/>
 </a>
 
-A daily word-guessing game themed around the [Nancy Grace Roman Space Telescope](https://roman.gsfc.nasa.gov/), built with [Streamlit](https://streamlit.io/).
+A daily word-guessing game themed around the [Nancy Grace Roman Space Telescope](https://roman.gsfc.nasa.gov/).
 
 ---
 
