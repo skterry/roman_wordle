@@ -40,16 +40,46 @@ for _k, _v in {"game_active": False, "secret_word": None}.items():
         st.session_state[_k] = _v
 
 
+# First day the dedup rotation took over from the old per-day random.choice scheme.
+_ROTATION_EPOCH = datetime.date(2026, 6, 14)
+
+# Words already shown 2026-06-04..-13 under the old scheme. Held out of the first
+# rotation pass so the whole bank cycles once before any of them can recur.
+_ALREADY_USED = frozenset(
+    {"BULGE", "GALAXY", "FLUX", "STRAY", "DISK", "NOISE", "CHIEF", "SPIRAL", "COMET"}
+)
+
+
 def get_daily_word() -> str:
     _overrides = {
         "2026-06-04": "BULGE",
     }
-    today = datetime.date.today().isoformat()   # e.g. "2026-06-04"
-    if today in _overrides:
-        return _overrides[today]
+    today = datetime.date.today()
+    iso = today.isoformat()   # e.g. "2026-06-04"
+    if iso in _overrides:
+        return _overrides[iso]
+
     # Sort first so the list order is stable regardless of set iteration order.
     words = sorted(w.upper() for w in KEYS if isinstance(w, str) and w.isalpha())
-    return random.Random(today).choice(words)
+
+    day_index = (today - _ROTATION_EPOCH).days
+    if day_index < 0:
+        # Dates before the rotation began: preserve the original behavior.
+        return random.Random(iso).choice(words)
+
+    # First pass: the words not yet shown, in a fixed shuffled order. Once these
+    # are exhausted, every later pass cycles the full bank, reshuffled per cycle.
+    # This guarantees all words appear once before any repeat.
+    remaining = [w for w in words if w not in _ALREADY_USED]
+    if day_index < len(remaining):
+        order = remaining[:]
+        random.Random("roman-wordle-cycle-0").shuffle(order)
+        return order[day_index]
+
+    cycle, pos = divmod(day_index - len(remaining), len(words))
+    order = words[:]
+    random.Random(f"roman-wordle-cycle-{cycle + 1}").shuffle(order)
+    return order[pos]
 
 
 def start_game() -> None:
