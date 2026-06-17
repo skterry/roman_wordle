@@ -87,7 +87,7 @@ def start_game() -> None:
     st.session_state.game_active = True
 
 
-def build_game_html(secret_word: str) -> tuple[str, int, int]:
+def build_game_html(secret_word: str) -> str:
     word_len = len(secret_word)
     max_guesses = 6
 
@@ -101,8 +101,18 @@ def build_game_html(secret_word: str) -> tuple[str, int, int]:
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <style>
 *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+
+/* Tile and key sizes cap at their desktop values but shrink to fit narrow
+   phone screens. The keyboard's top row (10 keys) is the widest element, so
+   --key is sized off 10 columns and the board off WORD_LEN columns; whichever
+   is the binding constraint, both stay inside the viewport. */
+:root {{
+  --tile: min(56px, calc((100vw - 24px) / {word_len} - 5px));
+  --key:  min(42px, calc((100vw - 24px - 45px) / 10));
+}}
 body {{
   font-family: Arial, sans-serif;
   background: #fff;
@@ -110,6 +120,7 @@ body {{
   flex-direction: column;
   align-items: center;
   padding: 12px 8px;
+  -webkit-text-size-adjust: 100%;
 }}
 
 /* ── message ── */
@@ -119,7 +130,7 @@ body {{
   text-align: center;
   color: #1a1a1b;
   margin-bottom: 10px;
-  min-width: 300px;
+  min-width: min(300px, 92vw);
 }}
 #message.win  {{ color: #6aaa64; }}
 #message.lose {{ color: #c0392b; }}
@@ -135,10 +146,10 @@ body {{
 }}
 .row {{ display: flex; gap: 5px; }}
 .tile {{
-  width: 56px; height: 56px;
+  width: var(--tile); height: var(--tile);
   border: 2px solid #d3d6da;
   display: flex; align-items: center; justify-content: center;
-  font-size: 2rem; font-weight: bold;
+  font-size: calc(var(--tile) * 0.5); font-weight: bold;
   color: #1a1a1b;
   text-transform: uppercase;
   user-select: none;
@@ -171,10 +182,11 @@ body {{
 }}
 .kb-row {{ display: flex; gap: 5px; }}
 .key {{
-  height: 56px; min-width: 42px; padding: 0 6px;
+  height: calc(var(--key) * 1.33); min-width: var(--key);
+  padding: 0 calc(var(--key) * 0.14);
   border: none; border-radius: 4px;
   background: #d3d6da;
-  font-size: 0.85rem; font-weight: 700;
+  font-size: calc(var(--key) * 0.34 + 4px); font-weight: 700;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   text-transform: uppercase;
@@ -182,7 +194,7 @@ body {{
   transition: background 0.2s, color 0.2s;
   user-select: none;
 }}
-.key.wide    {{ min-width: 66px; font-size: 0.78rem; }}
+.key.wide    {{ min-width: calc(var(--key) * 1.57); font-size: calc(var(--key) * 0.3 + 3px); }}
 .key.correct {{ background: #6aaa64; color: #fff; }}
 .key.present {{ background: #d4762a; color: #fff; }}
 .key.absent  {{ background: #787c7e; color: #fff; }}
@@ -545,23 +557,10 @@ buildKeyboard();
 </body>
 </html>"""
 
-    # Keyboard is ~471px wide (row 3: 7×42 + 2×66 + 9×5 = 471)
-    # Board width scales with word length
-    board_w = word_len * (56 + 5) - 5
-    total_w = max(board_w, 471) + 50
-
-    # message + board + keyboard + watermark + padding
-    total_h = (
-        70                                       # title + subtitle
-        + 40                                     # mobile keyboard hint banner
-        + 36 + 10                                # message
-        + max_guesses * (56 + 5) - 5 + 14       # board
-        + 3 * 56 + 2 * 5                         # keyboard (3 rows)
-        + 50                                     # give-up button
-        + 40                                     # watermark + body padding
-        + 30                                     # buffer
-    )
-    return html, total_w, total_h
+    # Sizing is handled responsively inside the HTML (CSS derives tile/key sizes
+    # from the viewport width), so the iframe is embedded fluidly with
+    # width="stretch" / height="content" — no fixed pixel dimensions needed.
+    return html
 
 
 # ── Streamlit UI ──
@@ -574,5 +573,5 @@ if not st.session_state.game_active:
     st.stop()
 
 secret = st.session_state.secret_word
-html_str, w, h = build_game_html(secret)
-st.iframe(html_str, width=w, height=h)
+html_str = build_game_html(secret)
+st.iframe(html_str, width="stretch", height="content")
