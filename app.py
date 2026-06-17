@@ -212,17 +212,44 @@ body {{
   font-size: 0.65rem; color: rgba(0,0,0,0.25);
   letter-spacing: 0.5px; pointer-events: none; user-select: none;
 }}
+
+/* ── mobile native-keyboard support ── */
+#kbd-hint {{
+  font-size: 0.85rem; color: #0b3d91; font-weight: 600;
+  text-align: center; margin-bottom: 10px;
+  cursor: pointer; user-select: none;
+  border: 1px dashed #b8c4e0; border-radius: 6px;
+  padding: 6px 12px;
+}}
+#kbd-hint:active {{ background: #eef2fb; }}
+/* Hide the hint on devices that have a real (hover-capable, fine) pointer. */
+@media (hover: hover) and (pointer: fine) {{
+  #kbd-hint {{ display: none; }}
+}}
+/* Off-screen input: focusing it summons the phone's native keyboard.
+   font-size:16px keeps iOS from auto-zooming when it gains focus. */
+#hidden-input {{
+  position: absolute; top: 0; left: 0;
+  height: 1px; width: 1px;
+  opacity: 0; pointer-events: none;
+  font-size: 16px; border: 0; padding: 0; background: transparent;
+}}
 </style>
 </head>
 <body>
 
 <div class="wl-title">ROMAN WORDLE</div>
 <div class="wl-sub">One Roman Space Telescope-themed word per day!</div>
+<div id="kbd-hint">⌨️ Tap here to type with your keyboard</div>
 <div id="message"></div>
 <div id="board"></div>
 <div id="keyboard"></div>
 <button id="giveup-btn" onclick="giveUp()">Give Up</button>
 <div class="watermark">Created by: S. K. Terry</div>
+<input id="hidden-input" type="text" inputmode="text" enterkeyhint="go"
+       maxlength="{word_len}" autocomplete="off" autocorrect="off"
+       autocapitalize="characters" spellcheck="false"
+       aria-hidden="true" tabindex="-1" />
 
 <script>
 const SECRET      = '{secret_word}';
@@ -234,6 +261,8 @@ let guesses  = [];
 let current  = '';
 let gameOver = false;
 let checking = false;   // true while a guess is being validated against the dictionary
+
+const hiddenInput = document.getElementById('hidden-input');
 
 // Returns true if `word` is a real English word (per the free Dictionary API).
 // Fails open: if the API is unreachable, we allow the guess rather than block play.
@@ -306,12 +335,18 @@ function handleKey(key) {{
 
 document.addEventListener('keydown', e => {{
   if (e.ctrlKey || e.metaKey || e.altKey) return;
+  // When the off-screen input holds focus (mobile / native keyboard), its own
+  // listeners handle typing — skip here to avoid registering each key twice.
+  if (document.activeElement === hiddenInput) return;
   if      (e.key === 'Backspace')          handleKey('⌫');
   else if (e.key === 'Enter')              handleKey('Enter');
   else if (/^[A-Za-z]$/.test(e.key))      handleKey(e.key);
 }});
 
 function renderCurrent() {{
+  // Keep the off-screen input in step with the model so switching between the
+  // native keyboard, on-screen keyboard, and a physical keyboard never desyncs.
+  if (hiddenInput.value !== current) hiddenInput.value = current;
   const r = guesses.length;
   for (let c = 0; c < WORD_LEN; c++) {{
     const tile = document.getElementById('tile-' + r + '-' + c);
@@ -379,6 +414,7 @@ async function submitGuess() {{
 
   guesses.push(guess);
   current = '';
+  hiddenInput.value = '';
 
   // Reveal tiles one at a time with a squish animation
   const STEP = 280;
@@ -448,6 +484,8 @@ function giveUp() {{
   if (!confirm('Give up and reveal the mystery word?')) return;
   gameOver = true;
   current  = '';
+  hiddenInput.value = '';
+  hiddenInput.blur();   // dismiss the native keyboard once the game ends
 
   const rowIdx = guesses.length;
   const STEP   = 200;
@@ -473,6 +511,33 @@ function giveUp() {{
   }}, WORD_LEN * STEP + 150);
 }}
 
+// ── native (mobile) keyboard support ──
+// The off-screen #hidden-input is the bridge to the phone's on-screen keyboard.
+// iOS only opens that keyboard from inside a user gesture, so we focus the input
+// when the player taps the hint banner or anywhere on the board.
+function focusInput() {{
+  if (gameOver) return;
+  hiddenInput.focus();
+}}
+document.getElementById('kbd-hint').addEventListener('click', focusInput);
+document.getElementById('board').addEventListener('click', focusInput);
+
+// Mirror whatever is in the input back into the in-progress guess. Driving the
+// model from the input value (rather than per-keystroke) means typing AND
+// deletes both work, even on Android keyboards that don't emit real keydowns.
+hiddenInput.addEventListener('input', () => {{
+  if (gameOver) {{ hiddenInput.value = ''; return; }}
+  const cleaned = hiddenInput.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, WORD_LEN);
+  if (hiddenInput.value !== cleaned) hiddenInput.value = cleaned;
+  current = cleaned;
+  renderCurrent();
+}});
+
+// The native keyboard's "go"/return key submits the guess.
+hiddenInput.addEventListener('keydown', e => {{
+  if (e.key === 'Enter') {{ e.preventDefault(); submitGuess(); }}
+}});
+
 // ── init ──
 buildBoard();
 buildKeyboard();
@@ -488,6 +553,7 @@ buildKeyboard();
     # message + board + keyboard + watermark + padding
     total_h = (
         70                                       # title + subtitle
+        + 40                                     # mobile keyboard hint banner
         + 36 + 10                                # message
         + max_guesses * (56 + 5) - 5 + 14       # board
         + 3 * 56 + 2 * 5                         # keyboard (3 rows)
