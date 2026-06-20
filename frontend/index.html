@@ -198,10 +198,15 @@ window.addEventListener('message', function(event) {
   _ready = true;
   buildBoard();
   buildKeyboard();
-  // Set frame height once after layout paints. We never call _stSetHeight
-  // again during gameplay — game content height doesn't change, and a live
-  // ResizeObserver would make the outer page scroll on every DOM tweak.
-  requestAnimationFrame(() => _stSetHeight(document.body.scrollHeight));
+  // Set frame height once after layout paints, then immediately reset the
+  // iframe's own scroll to the top. Without the scrollTo, dynamically building
+  // the board/keyboard into a small initial iframe causes the browser to scroll
+  // the iframe document to the last-added element (the keyboard at the bottom),
+  // which hides the title even after the iframe is resized to full height.
+  requestAnimationFrame(() => {
+    window.scrollTo(0, 0);
+    _stSetHeight(document.documentElement.scrollHeight);
+  });
 });
 
 // Tell Streamlit we're ready to receive the first render with our args.

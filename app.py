@@ -17,9 +17,11 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    #MainMenu {visibility: hidden;}
-    footer     {visibility: hidden;}
-    .block-container {padding-top: 0.5rem; padding-bottom: 0;}
+    /* display:none fully removes the header from layout so its fixed-position
+       stacking context no longer overlays the top of the component iframe. */
+    header[data-testid="stHeader"] { display: none !important; }
+    footer { visibility: hidden; }
+    .block-container { padding-top: 0.5rem; padding-bottom: 0; }
     </style>
     """,
     unsafe_allow_html=True,
