@@ -121,6 +121,8 @@ body {{
   align-items: center;
   padding: 12px 8px;
   -webkit-text-size-adjust: 100%;
+  /* Prevent this iframe's scroll from bleeding into the Streamlit parent. */
+  overscroll-behavior: contain;
 }}
 
 /* ── message ── */
@@ -153,6 +155,7 @@ body {{
   color: #1a1a1b;
   text-transform: uppercase;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }}
 .tile.filled    {{ border-color: #878a8c; animation: pop 0.08s ease-in-out; }}
 .tile.correct   {{ background: #6aaa64; color: #fff; border-color: #6aaa64; }}
@@ -193,6 +196,9 @@ body {{
   color: #1a1a1b;
   transition: background 0.2s, color 0.2s;
   user-select: none;
+  /* Remove the 300ms tap delay and suppress the blue flash on mobile. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }}
 .key.wide    {{ min-width: calc(var(--key) * 1.57); font-size: calc(var(--key) * 0.3 + 3px); }}
 .key.correct {{ background: #6aaa64; color: #fff; }}
@@ -239,9 +245,11 @@ body {{
   #kbd-hint {{ display: none; }}
 }}
 /* Off-screen input: focusing it summons the phone's native keyboard.
-   font-size:16px keeps iOS from auto-zooming when it gains focus. */
+   position:fixed keeps iOS from scrolling the page when this gains focus
+   (absolute at top:0 caused the outer Streamlit page to jump).
+   font-size:16px prevents iOS auto-zoom on focus. */
 #hidden-input {{
-  position: absolute; top: 0; left: 0;
+  position: fixed; top: -9999px; left: -9999px;
   height: 1px; width: 1px;
   opacity: 0; pointer-events: none;
   font-size: 16px; border: 0; padding: 0; background: transparent;
@@ -324,7 +332,16 @@ function buildKeyboard() {{
       btn.className = 'key' + (k.length > 1 ? ' wide' : '');
       btn.textContent = k;
       btn.id = 'key-' + k;
-      btn.addEventListener('click', () => handleKey(k));
+      // touchstart fires instantly (no 300ms delay) and preventDefault prevents
+      // the touch from scrolling the page or propagating to the Streamlit parent.
+      // A flag avoids double-firing when the browser also emits a synthetic click.
+      let _touched = false;
+      btn.addEventListener('touchstart', e => {{
+        e.preventDefault();
+        _touched = true;
+        handleKey(k);
+      }}, {{ passive: false }});
+      btn.addEventListener('click', () => {{ if (!_touched) handleKey(k); _touched = false; }});
       div.appendChild(btn);
     }}
     kb.appendChild(div);
@@ -529,7 +546,7 @@ function giveUp() {{
 // when the player taps the hint banner or anywhere on the board.
 function focusInput() {{
   if (gameOver) return;
-  hiddenInput.focus();
+  hiddenInput.focus({{ preventScroll: true }});
 }}
 document.getElementById('kbd-hint').addEventListener('click', focusInput);
 document.getElementById('board').addEventListener('click', focusInput);
