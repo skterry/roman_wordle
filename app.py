@@ -40,6 +40,7 @@ _ALREADY_USED = frozenset(
 def get_daily_word() -> str:
     _overrides = {
         "2026-06-04": "BULGE",
+        "2026-06-22": "GRISM",
     }
     today = datetime.date.today()
     iso = today.isoformat()
