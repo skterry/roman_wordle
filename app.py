@@ -41,6 +41,7 @@ def get_daily_word() -> str:
     _overrides = {
         "2026-06-04": "BULGE",
         "2026-06-22": "GRISM",
+        "2026-06-24": "SURVEY",
     }
     today = datetime.date.today()
     iso = today.isoformat()
