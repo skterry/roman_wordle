@@ -36,12 +36,36 @@ _ALREADY_USED = frozenset(
     {"BULGE", "GALAXY", "FLUX", "STRAY", "DISK", "NOISE", "CHIEF", "SPIRAL", "COMET"}
 )
 
+# Second epoch. Adding 50 words to the bank on 2026-08-02 changed the contents of
+# the cycle-0 `remaining` list, which reshuffles it and destroys the no-repeat
+# guarantee. Rather than reshuffle, freeze everything served to date and deal the
+# never-used words from a fresh seed starting here.
+_ROTATION_EPOCH_2 = datetime.date(2026, 8, 3)
+
+# Every word shown 2026-06-04..-08-02 under the 63-word bank. Held out of the
+# epoch-2 pass so the 55 unseen words all appear before anything recurs.
+_SERVED = frozenset(
+    {
+        "ARRAY", "BAND", "BULGE", "CHIEF", "COMET", "CORONA", "COSMOS",
+        "DISK", "DITHER", "EARTH", "EPOCH", "EUCLID", "FIELD", "FILTER",
+        "FLUX", "FOCAL", "GAIA", "GALAXY", "GIANT", "GRACE", "GRISM",
+        "GUIDE", "HUBBLE", "IMAGE", "IMAGER", "LAUNCH", "LENS", "LIGHT",
+        "MAST", "MIRROR", "MOSAIC", "NANCY", "NASA", "NEBULA", "NEXUS",
+        "NOISE", "NOVA", "OPTIC", "ORBIT", "PHASE", "PHOTON", "PIXEL",
+        "PRISM", "PROBE", "QUASAR", "RADIAL", "ROCKY", "ROMAN", "RUBIN",
+        "SCOPE", "SENSOR", "SIGNAL", "SPIRAL", "STAR", "STRAY", "SURVEY",
+        "WEBB", "WIDE",
+    }
+)
+
 
 def get_daily_word() -> str:
     _overrides = {
         "2026-06-04": "BULGE",
         "2026-06-22": "GRISM",
         "2026-06-24": "SURVEY",
+        # Pin the last pre-expansion day so the bank edit can't change it mid-play.
+        "2026-08-02": "BAND",
     }
     today = datetime.date.today()
     iso = today.isoformat()
@@ -50,6 +74,21 @@ def get_daily_word() -> str:
 
     words = sorted(w.upper() for w in KEYS if isinstance(w, str) and w.isalpha())
 
+    if today >= _ROTATION_EPOCH_2:
+        day_index = (today - _ROTATION_EPOCH_2).days
+        fresh = [w for w in words if w not in _SERVED]
+        if day_index < len(fresh):
+            order = fresh[:]
+            random.Random("roman-wordle-cycle-1").shuffle(order)
+            return order[day_index]
+        cycle, pos = divmod(day_index - len(fresh), len(words))
+        order = words[:]
+        random.Random(f"roman-wordle-cycle-{cycle + 2}").shuffle(order)
+        return order[pos]
+
+    # Legacy path, dead for any real "today" now that epoch 2 has opened. It no
+    # longer reproduces 2026-06-14..-08-01 either, since those words were dealt
+    # from the pre-expansion 63-word bank; _SERVED is the record of what ran.
     day_index = (today - _ROTATION_EPOCH).days
     if day_index < 0:
         return random.Random(iso).choice(words)
