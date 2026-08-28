@@ -41,8 +41,11 @@ If you're stuck, the **Give Up** button ends the current game and reveals the my
 
 ```
 roman_wordle/
-├── app.py            # Main Streamlit app and game logic
-├── secret_words.py   # Set of themed mystery words (4–6 letters)
+├── app.py            # Main Streamlit app and daily-word selection
+├── build_words.py    # Regenerates frontend/words.js
+├── frontend/
+│   ├── index.html    # The game (HTML/CSS/JS custom component)
+│   └── words.js      # Generated guess-validation dictionary
 ├── requirements.txt
 ├── .gitignore
 └── README.md
@@ -55,6 +58,30 @@ Contains the Streamlit page configuration, the daily-word selection function, an
 ### `secret_words.py`
 
 A Python `set` named `KEYS` containing all candidate mystery words. Every word is 4–6 letters long and related to the Roman Space Telescope mission, its instruments, science goals, or the broader astronomy context. To add or remove words, simply edit this set.
+
+---
+
+## Guess validation
+
+A guess is accepted if it appears in `frontend/words.js`, a generated set of
+~28,000 four-to-six letter words. Validation is entirely local, so submitting a
+guess makes no network request.
+
+This replaced a lookup against `api.dictionaryapi.dev`. That service began
+returning HTTP 522 after ~20 seconds for any word its CDN had not cached —
+including ordinary words like VENUS, METEOR and CRATER — which froze the game on
+each guess and, because the error path failed open, silently accepted gibberish.
+
+To rebuild the list, or after editing the `ASTRO_NAMES` supplement:
+
+```bash
+python3 build_words.py
+```
+
+The base corpus is `/usr/share/dict/words` (the `web2` list on macOS/BSD). It
+contains no proper nouns, so `ASTRO_NAMES` in `build_words.py` supplies the
+astronomy names — planets, moons, constellations, stars, missions, astronomers —
+that players reasonably guess. The daily-word bank is merged in automatically.
 
 ---
 
